@@ -4,11 +4,11 @@ import android.net.LocalSocket;
 import android.net.LocalSocketAddress;
 
 import java.io.Closeable;
-import java.io.FileDescriptor;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.DatagramSocket;
+import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
@@ -19,20 +19,18 @@ public final class DesktopConnection implements Closeable {
 
   private static final String SOCKET_NAME_PREFIX = "scrcpy";
 
-  private final Socket videoSocket;
-  private final FileDescriptor videoFd;
-
-  private final Socket audioSocket;
-  private final FileDescriptor audioFd;
-
+  private final DatagramSocket videoSocket;
+  private final DatagramSocket audioSocket;
   private final Socket controlSocket;
   private final InputStream controlInputStream;
   private final OutputStream controlOutputStream;
 
+  private final InetAddress cilentIp;
+
   private final ControlMessageReader reader = new ControlMessageReader();
   private final DeviceMessageWriter writer = new DeviceMessageWriter();
 
-  private DesktopConnection(Socket videoSocket, Socket audioSocket, Socket controlSocket) throws IOException {
+  private DesktopConnection(DatagramSocket videoSocket, DatagramSocket audioSocket, Socket controlSocket) throws IOException {
     this.videoSocket = videoSocket;
     this.controlSocket = controlSocket;
     this.audioSocket = audioSocket;
@@ -43,8 +41,7 @@ public final class DesktopConnection implements Closeable {
       controlInputStream = null;
       controlOutputStream = null;
     }
-    videoFd = ((FileOutputStream) videoSocket.getOutputStream()).getFD();
-    audioFd = audioSocket != null ? ((FileOutputStream) audioSocket.getOutputStream()).getFD() : null;
+    cilentIp = controlSocket.getInetAddress();
   }
 
   private static LocalSocket connect(String abstractName) throws IOException {
@@ -63,20 +60,14 @@ public final class DesktopConnection implements Closeable {
   }
 
   public static DesktopConnection open(int scid, boolean tunnelForward, boolean audio, boolean control, boolean sendDummyByte) throws IOException {
-    Socket videoSocket = null;
-    Socket audioSocket = null;
+    DatagramSocket videoSocket = null;
+    DatagramSocket audioSocket = null;
     Socket controlSocket = null;
     try {
       if (tunnelForward) {
+        videoSocket = new DatagramSocket();
+        audioSocket = new DatagramSocket();
         try (ServerSocket localServerSocket = new ServerSocket(6006)) {
-          videoSocket = localServerSocket.accept();
-          if (sendDummyByte) {
-            // send one byte so the client may read() to detect a connection error
-            videoSocket.getOutputStream().write(0);
-          }
-          if (audio) {
-            audioSocket = localServerSocket.accept();
-          }
           if (control) {
             controlSocket = localServerSocket.accept();
           }
@@ -99,14 +90,6 @@ public final class DesktopConnection implements Closeable {
   }
 
   public void close() throws IOException {
-    videoSocket.shutdownInput();
-    videoSocket.shutdownOutput();
-    videoSocket.close();
-    if (audioSocket != null) {
-      audioSocket.shutdownInput();
-      audioSocket.shutdownOutput();
-      audioSocket.close();
-    }
     if (controlSocket != null) {
       controlSocket.shutdownInput();
       controlSocket.shutdownOutput();
@@ -114,23 +97,16 @@ public final class DesktopConnection implements Closeable {
     }
   }
 
-  public void sendDeviceMeta(String deviceName) throws IOException {
-    byte[] buffer = new byte[DEVICE_NAME_FIELD_LENGTH];
-
-    byte[] deviceNameBytes = deviceName.getBytes(StandardCharsets.UTF_8);
-    int len = StringUtils.getUtf8TruncationIndex(deviceNameBytes, DEVICE_NAME_FIELD_LENGTH - 1);
-    System.arraycopy(deviceNameBytes, 0, buffer, 0, len);
-    // byte[] are always 0-initialized in java, no need to set '\0' explicitly
-
-    IO.writeFully(videoFd, buffer, 0, buffer.length);
+  public DatagramSocket getVideoFd() {
+    return videoSocket;
   }
 
-  public FileDescriptor getVideoFd() {
-    return videoFd;
+  public DatagramSocket getAudioFd() {
+    return audioSocket;
   }
 
-  public FileDescriptor getAudioFd() {
-    return audioFd;
+  public InetAddress getCilentIp() {
+    return cilentIp;
   }
 
   public ControlMessage receiveControlMessage() throws IOException {

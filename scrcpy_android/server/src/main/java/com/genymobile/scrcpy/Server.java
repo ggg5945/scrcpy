@@ -95,9 +95,6 @@ public final class Server {
     List<AsyncProcessor> asyncProcessors = new ArrayList<>();
 
     try (DesktopConnection connection = DesktopConnection.open(scid, tunnelForward, audio, control, sendDummyByte)) {
-      if (options.getSendDeviceMeta()) {
-        connection.sendDeviceMeta(Device.getDeviceName());
-      }
 
       if (control) {
         Controller controller = new Controller(device, connection, options.getClipboardAutosync(), options.getPowerOn());
@@ -107,7 +104,7 @@ public final class Server {
 
       if (audio) {
         AudioCodec audioCodec = options.getAudioCodec();
-        Streamer audioStreamer = new Streamer(connection.getAudioFd(), audioCodec, options.getSendCodecMeta(),
+        Streamer audioStreamer = new Streamer(connection.getAudioFd(), connection.getCilentIp(), 7007, audioCodec, options.getSendCodecMeta(),
             options.getSendFrameMeta());
         AsyncProcessor audioRecorder;
         if (audioCodec == AudioCodec.RAW) {
@@ -119,7 +116,7 @@ public final class Server {
         asyncProcessors.add(audioRecorder);
       }
 
-      Streamer videoStreamer = new Streamer(connection.getVideoFd(), options.getVideoCodec(), options.getSendCodecMeta(),
+      Streamer videoStreamer = new Streamer(connection.getVideoFd(), connection.getCilentIp(), 6006, options.getVideoCodec(), options.getSendCodecMeta(),
           options.getSendFrameMeta());
       ScreenEncoder screenEncoder = new ScreenEncoder(device, videoStreamer, options.getVideoBitRate(), options.getMaxFps(),
           options.getVideoCodecOptions(), options.getVideoEncoder(), options.getDownsizeOnError());

@@ -1,12 +1,13 @@
 package com.genymobile.scrcpy;
 
 import android.system.ErrnoException;
-import android.system.Os;
 import android.system.OsConstants;
 
-import java.io.FileDescriptor;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.DatagramPacket;
+import java.net.DatagramSocket;
+import java.net.InetAddress;
 import java.nio.ByteBuffer;
 import java.util.Scanner;
 
@@ -15,29 +16,24 @@ public final class IO {
     // not instantiable
   }
 
-  public static void writeFully(FileDescriptor fd, ByteBuffer from) throws IOException {
+  public static void writeFully(DatagramSocket fd, InetAddress cilentIP, int port, ByteBuffer from) throws IOException {
     // ByteBuffer position is not updated as expected by Os.write() on old Android versions, so
     // count the remaining bytes manually.
     // See <https://github.com/Genymobile/scrcpy/issues/291>.
-    int remaining = from.remaining();
-    while (remaining > 0) {
-      try {
-        int w = Os.write(fd, from);
-        if (BuildConfig.DEBUG && w < 0) {
-          // w should not be negative, since an exception is thrown on error
-          throw new AssertionError("Os.write() returned a negative value (" + w + ")");
-        }
-        remaining -= w;
-      } catch (ErrnoException e) {
-        if (e.errno != OsConstants.EINTR) {
-          throw new IOException(e);
-        }
-      }
+    int length = from.remaining();
+    int po = 0;
+    byte[] array = new byte[length];
+    from.get(array, 0, length);
+    while (length > 1400) {
+      length -= 1400;
+      fd.send(new DatagramPacket(array, po, 1400, cilentIP, port));
+      po += 1400;
     }
+    if (length>0)fd.send(new DatagramPacket(array, po, length, cilentIP, port));
   }
 
-  public static void writeFully(FileDescriptor fd, byte[] buffer, int offset, int len) throws IOException {
-    writeFully(fd, ByteBuffer.wrap(buffer, offset, len));
+  public static void writeFully(DatagramSocket fd, InetAddress cilentIP, int port, byte[] buffer, int offset, int len) throws IOException {
+    writeFully(fd, cilentIP, port, ByteBuffer.wrap(buffer, offset, len));
   }
 
   public static String toString(InputStream inputStream) {
