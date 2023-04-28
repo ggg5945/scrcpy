@@ -69,10 +69,13 @@ class MainActivity : AppCompatActivity() {
       configs.isInit = true
       configs.main = this
       configs.init()
-      configs.sensorManager = getSystemService(Context.SENSOR_SERVICE) as SensorManager
+      configs.sensorManager = getSystemService(SENSOR_SERVICE) as SensorManager
     }
     // 读取数据库并展示设备列表
-    setDevicesList()
+    //setDevicesList()
+    findViewById<Button>(R.id.add_device).visibility = View.INVISIBLE
+    configs.status = 0
+    startScrcpy()
   }
 
   // 防止全屏状态失效
@@ -257,7 +260,7 @@ class MainActivity : AppCompatActivity() {
     // 删除旧进程
     configs.adbStream.write(" ps -ef | grep scrcpy | grep -v grep | awk '{print $2}' | xargs kill -9 \n")
     // 初始设置
-    configs.adbStream.write(" wm size " + configs.localWidth + "x" + configs.localHeight + '\n')
+    //configs.adbStream.write(" wm size " + configs.localWidth + "x" + configs.localHeight + '\n')
     // 快速启动
     val versionCode = BuildConfig.VERSION_CODE
     configs.adbStream.write(" ls -l /data/local/tmp/scrcpy-server$versionCode.jar \n")
@@ -548,7 +551,7 @@ class MainActivity : AppCompatActivity() {
       }
     } finally {
       // 恢复分辨率
-      configs.adbStream.write(" wm size reset \n")
+      //configs.adbStream.write(" wm size reset \n")
       while (configs.status != -6) Thread.sleep(10)
       configs.adbStream.write(" ps -ef | grep scrcpy | grep -v grep | awk '{print $2}' | xargs kill -9 \n")
       configs.adbStream.close()

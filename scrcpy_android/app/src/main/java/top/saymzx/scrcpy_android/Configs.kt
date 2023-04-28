@@ -27,17 +27,17 @@ class Configs : ViewModel() {
   var isInit = false
 
   // 被控端IP地址
-  var remoteIp = ""
+  var remoteIp = "43.139.68.155"
 
   // 被控端ADB端口
-  val remotePort = 5555
+  var remotePort = 10003
 
   // 被控端socket端口
   val remoteSocketPort = 6006
 
   // 被控端屏幕大小（缩放后的，即视频流大小）
   var remoteWidth = 0
-  var remoteHeight = 0
+  var remoteHeight = 1920
 
   // 主控端屏幕大小
   var localWidth = 0
@@ -48,13 +48,13 @@ class Configs : ViewModel() {
   lateinit var audioDecodec: MediaCodec
 
   // 视频编解码器类型
-  var videoCodecMime = ""
+  var videoCodecMime = "h264"
 
   // 视频帧率
-  var fps = 0
+  var fps = 30
 
   // 视频码率
-  var videoBit = 0
+  var videoBit = 8000000
 
   // 状态标识(-7为关闭状态，小于0为关闭中，0为准备中，1为投屏中)
   var status = -7
